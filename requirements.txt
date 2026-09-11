@@ -1,0 +1,2 @@
+pyTelegramBotAPI>=4.29,<5
+Telethon>=1.42,<2
