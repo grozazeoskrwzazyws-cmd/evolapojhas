@@ -315,7 +315,7 @@ def guard_message(message):
     ensure_user(message.from_user)
     if is_banned(message.from_user.id):
         try:
-            bot.send_message(message.chat.id, "أنت محظور من استخدام البوت.")
+            bot.send_message(message.chat.id, "Ø£ÙØª ÙØ­Ø¸ÙØ± ÙÙ Ø§Ø³ØªØ®Ø¯Ø§Ù Ø§ÙØ¨ÙØª.")
         except Exception:
             pass
         return True
@@ -330,7 +330,7 @@ def ban_user(user_id, username, reason, banned_by):
         (user_id,username,reason,banned_by,date_banned)
         VALUES (?,?,?,?,?)
         """,
-        (user_id, username or "", reason or "مخالفة", banned_by, date_banned),
+        (user_id, username or "", reason or "ÙØ®Ø§ÙÙØ©", banned_by, date_banned),
     )
     storage_write_ban(user_id, username, reason, banned_by, date_banned)
 
@@ -437,7 +437,7 @@ def storage_write_ban(user_id, username, reason, banned_by, date_banned):
         "ban",
         USER_ID=user_id,
         USERNAME=username or "",
-        REASON=reason or "مخالفة",
+        REASON=reason or "ÙØ®Ø§ÙÙØ©",
         BANNED_BY=banned_by,
         DATE_BANNED=date_banned,
     )
@@ -459,6 +459,78 @@ def storage_write_start(msg_type, file_id, caption):
         FILE_ID=file_id,
         CAPTION=caption or "",
     )
+
+
+def review_keyboard(code):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(
+            "â ï¸ ÙØ®Ø§ÙÙØ© - Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù",
+            callback_data=f"report:{code}",
+        )
+    )
+    return markup
+
+
+def storage_send_review(code, msg_type, content, caption, creator_id, creator_username, creator_name):
+    """Send generated media to Storage Group with an Owner-only moderation button."""
+    if msg_type not in ("photo", "video", "media"):
+        return True
+
+    username_text = f"@{creator_username}" if creator_username else "ØºÙØ± ÙÙØ¬ÙØ¯"
+    review_text = (
+        "ð ÙØ±Ø§Ø¬Ø¹Ø© ÙØ­ØªÙÙ Ø¬Ø¯ÙØ¯\n\n"
+        f"Ø§ÙØ±Ø§Ø¨Ø·: {code}\n"
+        f"Ø§ÙÙÙØ´Ø¦: {creator_name or 'ØºÙØ± ÙØ¹Ø±ÙÙ'}\n"
+        f"Username: {username_text}\n"
+        f"User ID: {creator_id}\n\n"
+        "Ø¥Ø°Ø§ ÙØ§Ù Ø§ÙÙØ­ØªÙÙ ÙØ®Ø§ÙÙÙØ§Ø Ø§Ø¶ØºØ· Ø²Ø± Ø§ÙÙØ®Ø§ÙÙØ©.\n"
+        "Ø§ÙÙØ±Ø§Ø¬Ø¹Ø© ÙØ§ÙØ­Ø¸Ø± ÙØªØ§Ø­Ø§Ù ÙÙÙ Owners ÙÙØ·."
+    )
+
+    try:
+        if msg_type == "photo":
+            bot.send_photo(
+                STORAGE_CHAT_ID,
+                content,
+                caption=caption or None,
+                disable_notification=True,
+            )
+        elif msg_type == "video":
+            bot.send_video(
+                STORAGE_CHAT_ID,
+                content,
+                caption=caption or None,
+                disable_notification=True,
+            )
+        elif msg_type == "media":
+            items = json.loads(content)
+            media = []
+            for index, item in enumerate(items):
+                item_caption = item.get("caption") or None
+                if index > 0:
+                    item_caption = None
+                if item.get("type") == "photo":
+                    media.append(types.InputMediaPhoto(item["file_id"], caption=item_caption))
+                elif item.get("type") == "video":
+                    media.append(types.InputMediaVideo(item["file_id"], caption=item_caption))
+            if not media:
+                return False
+            for start in range(0, len(media), 10):
+                bot.send_media_group(STORAGE_CHAT_ID, media[start:start + 10])
+
+        # Telegram albums cannot have an inline keyboard on the album itself,
+        # so the moderation message is sent immediately underneath the album.
+        bot.send_message(
+            STORAGE_CHAT_ID,
+            review_text,
+            reply_markup=review_keyboard(code),
+            disable_notification=True,
+        )
+        return True
+    except Exception as e:
+        print("STORAGE REVIEW ERROR:", repr(e))
+        return False
 
 
 def storage_write_link(code, msg_type, content, caption, creator_id, creator_username, creator_name):
@@ -546,11 +618,11 @@ def send_subscribe_prompt(user_id, pending_code=None):
 
     markup = types.InlineKeyboardMarkup()
     if link:
-        markup.add(types.InlineKeyboardButton("📢 اشترك في القناة", url=link))
-    markup.add(types.InlineKeyboardButton("✅ تحقق من الاشتراك", callback_data="check_sub"))
+        markup.add(types.InlineKeyboardButton("ð¢ Ø§Ø´ØªØ±Ù ÙÙ Ø§ÙÙÙØ§Ø©", url=link))
+    markup.add(types.InlineKeyboardButton("â ØªØ­ÙÙ ÙÙ Ø§ÙØ§Ø´ØªØ±Ø§Ù", callback_data="check_sub"))
     bot.send_message(
         user_id,
-        "⚠️ يجب عليك الاشتراك في القناة أولاً لاستخدام البوت",
+        "â ï¸ ÙØ¬Ø¨ Ø¹ÙÙÙ Ø§ÙØ§Ø´ØªØ±Ø§Ù ÙÙ Ø§ÙÙÙØ§Ø© Ø£ÙÙØ§Ù ÙØ§Ø³ØªØ®Ø¯Ø§Ù Ø§ÙØ¨ÙØª",
         reply_markup=markup,
     )
 
@@ -626,15 +698,30 @@ def create_link(msg_type, content, caption, creator):
 
     # Telegram is the persistent copy. If it fails, local SQLite remains usable,
     # and the Owner can retry storage synchronization later.
+    creator_username = creator.username or ""
+    creator_name = creator.first_name or ""
+
     storage_write_link(
         code,
         msg_type,
         content,
         caption or "",
         creator.id,
-        creator.username or "",
-        creator.first_name or "",
+        creator_username,
+        creator_name,
     )
+
+    # Moderation is sent ONLY to the Storage Group. The admin who generated
+    # the link receives the link itself, without any violation button.
+    if msg_type in ("photo", "video", "media"):
+        for attempt in range(3):
+            if storage_send_review(
+                code, msg_type, content, caption or "",
+                creator.id, creator_username, creator_name,
+            ):
+                break
+            time.sleep(attempt + 1)
+
     return code, None, False
 
 
@@ -666,7 +753,7 @@ def deliver_content(user_id, code):
         fetchone=True,
     )
     if not row:
-        bot.send_message(user_id, "الرابط غير صالح")
+        bot.send_message(user_id, "Ø§ÙØ±Ø§Ø¨Ø· ØºÙØ± ØµØ§ÙØ­")
         return
 
     msg_type, content, caption = row
@@ -697,7 +784,7 @@ def deliver_content(user_id, code):
                 sent.extend(m.message_id for m in msgs)
     except Exception as e:
         print("DELIVER ERROR:", repr(e))
-        bot.send_message(user_id, "⚠️ تعذر إرسال المحتوى.")
+        bot.send_message(user_id, "â ï¸ ØªØ¹Ø°Ø± Ø¥Ø±Ø³Ø§Ù Ø§ÙÙØ­ØªÙÙ.")
         return
 
     delete_after(user_id, sent)
@@ -713,7 +800,7 @@ def send_start(user_id):
         fetchone=True,
     )
     if not row:
-        bot.send_message(user_id, "اهلا بك 👋")
+        bot.send_message(user_id, "Ø§ÙÙØ§ Ø¨Ù ð")
         return
 
     msg_type, content, caption = row
@@ -723,9 +810,9 @@ def send_start(user_id):
         elif msg_type == "video":
             bot.send_video(user_id, content, caption=caption or "")
         else:
-            bot.send_message(user_id, caption or "اهلا بك 👋")
+            bot.send_message(user_id, caption or "Ø§ÙÙØ§ Ø¨Ù ð")
     except Exception:
-        bot.send_message(user_id, caption or "اهلا بك 👋")
+        bot.send_message(user_id, caption or "Ø§ÙÙØ§ Ø¨Ù ð")
 
 # ============================================================
 # Keyboards
@@ -736,23 +823,23 @@ def admin_keyboard(user_id):
     markup = types.InlineKeyboardMarkup()
 
     if is_admin(user_id):
-        markup.add(types.InlineKeyboardButton("توليد رابط", callback_data="create"))
-        markup.add(types.InlineKeyboardButton("⚠️ حظر مستخدم", callback_data="ban_user"))
+        markup.add(types.InlineKeyboardButton("ØªÙÙÙØ¯ Ø±Ø§Ø¨Ø·", callback_data="create"))
+        markup.add(types.InlineKeyboardButton("â ï¸ Ø­Ø¸Ø± ÙØ³ØªØ®Ø¯Ù", callback_data="ban_user"))
 
     if is_owner(user_id):
-        markup.add(types.InlineKeyboardButton("إذاعة", callback_data="broadcast"))
+        markup.add(types.InlineKeyboardButton("Ø¥Ø°Ø§Ø¹Ø©", callback_data="broadcast"))
         markup.add(
-            types.InlineKeyboardButton("إضافة مشرف", callback_data="add_admin"),
-            types.InlineKeyboardButton("حذف مشرف", callback_data="remove_admin"),
+            types.InlineKeyboardButton("Ø¥Ø¶Ø§ÙØ© ÙØ´Ø±Ù", callback_data="add_admin"),
+            types.InlineKeyboardButton("Ø­Ø°Ù ÙØ´Ø±Ù", callback_data="remove_admin"),
         )
         markup.add(
-            types.InlineKeyboardButton("حذف رابط", callback_data="delete_link"),
-            types.InlineKeyboardButton("عدد المستخدمين", callback_data="users"),
+            types.InlineKeyboardButton("Ø­Ø°Ù Ø±Ø§Ø¨Ø·", callback_data="delete_link"),
+            types.InlineKeyboardButton("Ø¹Ø¯Ø¯ Ø§ÙÙØ³ØªØ®Ø¯ÙÙÙ", callback_data="users"),
         )
-        markup.add(types.InlineKeyboardButton("تعديل start", callback_data="edit_start"))
-        markup.add(types.InlineKeyboardButton("قناة الاشتراك الإجباري", callback_data="set_channel"))
-        markup.add(types.InlineKeyboardButton("فك حظر", callback_data="unban_user"))
-        markup.add(types.InlineKeyboardButton("فحص Storage", callback_data="storage_check"))
+        markup.add(types.InlineKeyboardButton("ØªØ¹Ø¯ÙÙ start", callback_data="edit_start"))
+        markup.add(types.InlineKeyboardButton("ÙÙØ§Ø© Ø§ÙØ§Ø´ØªØ±Ø§Ù Ø§ÙØ¥Ø¬Ø¨Ø§Ø±Ù", callback_data="set_channel"))
+        markup.add(types.InlineKeyboardButton("ÙÙ Ø­Ø¸Ø±", callback_data="unban_user"))
+        markup.add(types.InlineKeyboardButton("ÙØ­Øµ Storage", callback_data="storage_check"))
         markup.add(types.InlineKeyboardButton("Recovery", callback_data="recovery"))
 
     return markup
@@ -760,7 +847,7 @@ def admin_keyboard(user_id):
 
 def report_keyboard(code):
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("⚠️ مخالفة", callback_data=f"report:{code}"))
+    markup.add(types.InlineKeyboardButton("â ï¸ ÙØ®Ø§ÙÙØ©", callback_data=f"report:{code}"))
     return markup
 
 # ============================================================
@@ -790,7 +877,7 @@ def start(message):
         if user_id not in admins_seen_start:
             send_start(user_id)
             admins_seen_start.add(user_id)
-        bot.send_message(user_id, "لوحة التحكم", reply_markup=admin_keyboard(user_id))
+        bot.send_message(user_id, "ÙÙØ­Ø© Ø§ÙØªØ­ÙÙ", reply_markup=admin_keyboard(user_id))
     else:
         send_start(user_id)
 
@@ -805,13 +892,13 @@ def callback(call):
     data = call.data or ""
 
     if is_banned(user_id):
-        bot.answer_callback_query(call.id, "أنت محظور من استخدام البوت.", show_alert=True)
+        bot.answer_callback_query(call.id, "Ø£ÙØª ÙØ­Ø¸ÙØ± ÙÙ Ø§Ø³ØªØ®Ø¯Ø§Ù Ø§ÙØ¨ÙØª.", show_alert=True)
         return
 
     # Subscription check is available to everybody.
     if data == "check_sub":
         if is_subscribed(user_id):
-            bot.answer_callback_query(call.id, "تم التحقق بنجاح ✅")
+            bot.answer_callback_query(call.id, "ØªÙ Ø§ÙØªØ­ÙÙ Ø¨ÙØ¬Ø§Ø­ â")
             try:
                 bot.delete_message(user_id, call.message.message_id)
             except Exception:
@@ -820,11 +907,11 @@ def callback(call):
             if code:
                 deliver_content(user_id, code)
             elif is_admin(user_id):
-                bot.send_message(user_id, "لوحة التحكم", reply_markup=admin_keyboard(user_id))
+                bot.send_message(user_id, "ÙÙØ­Ø© Ø§ÙØªØ­ÙÙ", reply_markup=admin_keyboard(user_id))
             else:
                 send_start(user_id)
         else:
-            bot.answer_callback_query(call.id, "لم تشترك بعد ⚠️", show_alert=True)
+            bot.answer_callback_query(call.id, "ÙÙ ØªØ´ØªØ±Ù Ø¨Ø¹Ø¯ â ï¸", show_alert=True)
         return
 
     # Owner-only operations.
@@ -839,11 +926,11 @@ def callback(call):
     }
 
     if data in admin_operations and not is_admin(user_id):
-        bot.answer_callback_query(call.id, "ليس لديك صلاحية.", show_alert=True)
+        bot.answer_callback_query(call.id, "ÙÙØ³ ÙØ¯ÙÙ ØµÙØ§Ø­ÙØ©.", show_alert=True)
         return
 
     if data in owner_only and not is_owner(user_id):
-        bot.answer_callback_query(call.id, "هذه الصلاحية للـ Owner فقط.", show_alert=True)
+        bot.answer_callback_query(call.id, "ÙØ°Ù Ø§ÙØµÙØ§Ø­ÙØ© ÙÙÙ Owner ÙÙØ·.", show_alert=True)
         return
 
     # Reports are allowed for Admin/Owner.
@@ -853,62 +940,65 @@ def callback(call):
     if data.startswith("ban_confirm:"):
         handle_ban_confirm(call, data.split(":", 1)[1])
         return
+    if data.startswith("report_unban:"):
+        handle_report_unban(call, data.split(":", 1)[1])
+        return
     if data == "ban_cancel":
-        bot.answer_callback_query(call.id, "تم الإلغاء")
-        bot.send_message(user_id, "تم إلغاء الحظر.")
+        bot.answer_callback_query(call.id, "ØªÙ Ø§ÙØ¥ÙØºØ§Ø¡")
+        bot.send_message(user_id, "ØªÙ Ø¥ÙØºØ§Ø¡ Ø§ÙØ­Ø¸Ø±.")
         return
 
     bot.answer_callback_query(call.id)
 
     if data == "create":
         admin_steps[user_id] = "create"
-        bot.send_message(user_id, "ارسل المحتوى")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù Ø§ÙÙØ­ØªÙÙ")
     elif data == "broadcast":
         admin_steps[user_id] = "broadcast_msg"
-        bot.send_message(user_id, "ارسل رسالة الإذاعة")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù Ø±Ø³Ø§ÙØ© Ø§ÙØ¥Ø°Ø§Ø¹Ø©")
     elif data == "add_admin":
         admin_steps[user_id] = "add_admin"
-        bot.send_message(user_id, "ارسل الايدي")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù Ø§ÙØ§ÙØ¯Ù")
     elif data == "remove_admin":
         admin_steps[user_id] = "remove_admin"
-        bot.send_message(user_id, "ارسل الايدي")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù Ø§ÙØ§ÙØ¯Ù")
     elif data == "delete_link":
         admin_steps[user_id] = "delete_link"
-        bot.send_message(user_id, "ارسل كود الرابط")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù ÙÙØ¯ Ø§ÙØ±Ø§Ø¨Ø·")
     elif data == "users":
         total = db_execute("SELECT COUNT(*) FROM users", fetchone=True)[0]
-        bot.send_message(user_id, f"عدد المستخدمين: {total}")
+        bot.send_message(user_id, f"Ø¹Ø¯Ø¯ Ø§ÙÙØ³ØªØ®Ø¯ÙÙÙ: {total}")
     elif data == "edit_start":
         admin_steps[user_id] = "edit_start"
-        bot.send_message(user_id, "ارسل صورة او فيديو مع وصف")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù ØµÙØ±Ø© Ø§Ù ÙÙØ¯ÙÙ ÙØ¹ ÙØµÙ")
     elif data == "ban_user":
         admin_steps[user_id] = "ban_user"
-        bot.send_message(user_id, "ارسل User ID")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù User ID")
     elif data == "unban_user":
         admin_steps[user_id] = "unban_user"
-        bot.send_message(user_id, "ارسل User ID")
+        bot.send_message(user_id, "Ø§Ø±Ø³Ù User ID")
     elif data == "set_channel":
         admin_steps[user_id] = "set_channel"
         channel = get_forced_channel()
-        current = f"\n\nالقناة الحالية: {channel.get('title', '—')}" if channel else "\n\nلا توجد قناة مفعّلة حاليًا"
+        current = f"\n\nØ§ÙÙÙØ§Ø© Ø§ÙØ­Ø§ÙÙØ©: {channel.get('title', 'â')}" if channel else "\n\nÙØ§ ØªÙØ¬Ø¯ ÙÙØ§Ø© ÙÙØ¹ÙÙØ© Ø­Ø§ÙÙÙØ§"
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("❌ إلغاء الاشتراك الإجباري", callback_data="disable_channel"))
+        markup.add(types.InlineKeyboardButton("â Ø¥ÙØºØ§Ø¡ Ø§ÙØ§Ø´ØªØ±Ø§Ù Ø§ÙØ¥Ø¬Ø¨Ø§Ø±Ù", callback_data="disable_channel"))
         bot.send_message(
             user_id,
-            "لتفعيل الاشتراك الإجباري:\n"
-            "1) اجعل البوت مشرفًا في القناة\n"
-            "2) وجّه منشورًا من القناة إلى هنا، أو أرسل @username" + current,
+            "ÙØªÙØ¹ÙÙ Ø§ÙØ§Ø´ØªØ±Ø§Ù Ø§ÙØ¥Ø¬Ø¨Ø§Ø±Ù:\n"
+            "1) Ø§Ø¬Ø¹Ù Ø§ÙØ¨ÙØª ÙØ´Ø±ÙÙØ§ ÙÙ Ø§ÙÙÙØ§Ø©\n"
+            "2) ÙØ¬ÙÙ ÙÙØ´ÙØ±ÙØ§ ÙÙ Ø§ÙÙÙØ§Ø© Ø¥ÙÙ ÙÙØ§Ø Ø£Ù Ø£Ø±Ø³Ù @username" + current,
             reply_markup=markup,
         )
     elif data == "disable_channel":
         set_state("forced_channel", "")
         storage_record("forced_channel_disabled", DATE=now())
         admin_steps[user_id] = None
-        bot.send_message(user_id, "تم إلغاء الاشتراك الإجباري ✅")
+        bot.send_message(user_id, "ØªÙ Ø¥ÙØºØ§Ø¡ Ø§ÙØ§Ø´ØªØ±Ø§Ù Ø§ÙØ¥Ø¬Ø¨Ø§Ø±Ù â")
     elif data == "storage_check":
         check_storage(user_id)
     elif data == "recovery":
-        bot.send_message(user_id, "بدأ Recovery... لا تغلق البوت حتى تنتهي العملية.")
+        bot.send_message(user_id, "Ø¨Ø¯Ø£ Recovery... ÙØ§ ØªØºÙÙ Ø§ÙØ¨ÙØª Ø­ØªÙ ØªÙØªÙÙ Ø§ÙØ¹ÙÙÙØ©.")
         threading.Thread(target=run_recovery, args=(user_id,), daemon=True).start()
 
 # ============================================================
@@ -916,76 +1006,201 @@ def callback(call):
 # ============================================================
 
 
+def _owner_only_callback(call):
+    if not is_owner(call.from_user.id):
+        bot.answer_callback_query(
+            call.id,
+            "ÙØ°Ù Ø§ÙÙØ±Ø§Ø¬Ø¹Ø© ÙÙÙ Owner ÙÙØ·.",
+            show_alert=True,
+        )
+        return False
+    return True
+
+
 def handle_report(call, code):
-    admin_id = call.from_user.id
-    if not is_admin(admin_id):
-        bot.answer_callback_query(call.id, "ليس لديك صلاحية.", show_alert=True)
+    """One-click Owner moderation from the Storage Group."""
+    if not _owner_only_callback(call):
         return
 
     row = db_execute(
         """
-        SELECT type,creator_id,creator_username,creator_name
+        SELECT creator_id,creator_username,creator_name
         FROM links WHERE code=? AND deleted=0
         """,
         (code,),
         fetchone=True,
     )
     if not row:
-        bot.answer_callback_query(call.id, "الرابط غير موجود.", show_alert=True)
+        bot.answer_callback_query(call.id, "Ø§ÙØ±Ø§Ø¨Ø· ØºÙØ± ÙÙØ¬ÙØ¯.", show_alert=True)
         return
 
-    msg_type, creator_id, creator_username, creator_name = row
+    creator_id, creator_username, creator_name = row
     if not creator_id:
-        bot.answer_callback_query(call.id, "لا توجد هوية منشئ محفوظة لهذا الرابط.", show_alert=True)
+        bot.answer_callback_query(
+            call.id,
+            "ÙØ§ ØªÙØ¬Ø¯ ÙÙÙØ© ÙÙØ´Ø¦ ÙØ­ÙÙØ¸Ø© ÙÙØ°Ø§ Ø§ÙØ±Ø§Ø¨Ø·.",
+            show_alert=True,
+        )
         return
 
-    username_text = f"@{creator_username}" if creator_username else "غير موجود"
-    text = (
-        "⚠️ محتوى مخالف\n\n"
-        f"الاسم: {creator_name or 'غير معروف'}\n"
-        f"Username: {username_text}\n"
-        f"User ID: {creator_id}\n\n"
-        "هل تريد حظر هذا المستخدم؟"
-    )
-    markup = types.InlineKeyboardMarkup()
-    markup.add(
-        types.InlineKeyboardButton("حظر المستخدم", callback_data=f"ban_confirm:{creator_id}"),
-        types.InlineKeyboardButton("إلغاء", callback_data="ban_cancel"),
-    )
-    bot.answer_callback_query(call.id)
-    bot.send_message(admin_id, text, reply_markup=markup)
-
-
-def handle_ban_confirm(call, target_id_raw):
-    admin_id = call.from_user.id
     try:
-        target_id = int(target_id_raw)
-    except ValueError:
-        bot.answer_callback_query(call.id, "ID غير صحيح.", show_alert=True)
+        target_id = int(creator_id)
+    except (TypeError, ValueError):
+        bot.answer_callback_query(call.id, "User ID ØºÙØ± ØµØ§ÙØ­.", show_alert=True)
         return
 
     if target_id in OWNERS:
-        bot.answer_callback_query(call.id, "لا يمكن حظر Owner.", show_alert=True)
+        bot.answer_callback_query(call.id, "ÙØ§ ÙÙÙÙ Ø­Ø¸Ø± Owner.", show_alert=True)
+        return
+
+    if is_banned(target_id):
+        markup = types.InlineKeyboardMarkup()
+        markup.add(
+            types.InlineKeyboardButton(
+                "â©ï¸ ÙÙ Ø§ÙØ­Ø¸Ø±",
+                callback_data=f"report_unban:{target_id}:{code}",
+            )
+        )
+        try:
+            bot.edit_message_reply_markup(
+                call.message.chat.id,
+                call.message.message_id,
+                reply_markup=markup,
+            )
+        except Exception:
+            pass
+        bot.answer_callback_query(call.id, "Ø§ÙÙØ³ØªØ®Ø¯Ù ÙØ­Ø¸ÙØ± Ø¨Ø§ÙÙØ¹Ù.", show_alert=True)
+        return
+
+    username = creator_username or ""
+    ban_user(target_id, username, "ÙØ®Ø§ÙÙØ©", call.from_user.id)
+
+    username_text = f"@{username}" if username else "ØºÙØ± ÙÙØ¬ÙØ¯"
+    text = (
+        "ð« ØªÙ Ø­Ø¸Ø± ØµØ§Ø­Ø¨ Ø§ÙÙØ­ØªÙÙ\n\n"
+        f"Ø§ÙØ§Ø³Ù: {creator_name or 'ØºÙØ± ÙØ¹Ø±ÙÙ'}\n"
+        f"Username: {username_text}\n"
+        f"User ID: {target_id}\n"
+        f"Ø§ÙØ±Ø§Ø¨Ø·: {code}\n"
+        f"Ø¨ÙØ§Ø³Ø·Ø© Owner: {call.from_user.id}\n"
+        "Ø§ÙØ³Ø¨Ø¨: ÙØ®Ø§ÙÙØ©"
+    )
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(
+            "â©ï¸ ÙÙ Ø§ÙØ­Ø¸Ø±",
+            callback_data=f"report_unban:{target_id}",
+        )
+    )
+
+    try:
+        bot.edit_message_text(
+            text,
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=markup,
+        )
+    except Exception as e:
+        print("REPORT EDIT ERROR:", repr(e))
+
+    bot.answer_callback_query(call.id, "ØªÙ Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù ÙÙØ±ÙØ§.", show_alert=True)
+
+
+def handle_ban_confirm(call, target_id_raw):
+    # Kept for compatibility with old callback buttons. It is Owner-only and
+    # immediately bans, matching the new moderation behavior.
+    if not _owner_only_callback(call):
+        return
+
+    try:
+        target_id = int(target_id_raw)
+    except ValueError:
+        bot.answer_callback_query(call.id, "ID ØºÙØ± ØµØ­ÙØ­.", show_alert=True)
+        return
+
+    if target_id in OWNERS:
+        bot.answer_callback_query(call.id, "ÙØ§ ÙÙÙÙ Ø­Ø¸Ø± Owner.", show_alert=True)
         return
 
     row = db_execute(
-        "SELECT username FROM users WHERE user_id=?",
+        "SELECT username,first_name FROM users WHERE user_id=?",
         (target_id,),
         fetchone=True,
     )
     username = row[0] if row else ""
-    ban_user(target_id, username, "مخالفة", admin_id)
+    first_name = row[1] if row else "ØºÙØ± ÙØ¹Ø±ÙÙ"
+    ban_user(target_id, username, "ÙØ®Ø§ÙÙØ©", call.from_user.id)
 
-    bot.answer_callback_query(call.id, "تم الحظر.")
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(
+            "â©ï¸ ÙÙ Ø§ÙØ­Ø¸Ø±",
+            callback_data=f"report_unban:{target_id}",
+        )
+    )
+    text = (
+        "ð« ØªÙ Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù\n\n"
+        f"Ø§ÙØ§Ø³Ù: {first_name or 'ØºÙØ± ÙØ¹Ø±ÙÙ'}\n"
+        f"Username: {('@' + username) if username else 'ØºÙØ± ÙÙØ¬ÙØ¯'}\n"
+        f"User ID: {target_id}\n"
+        f"Ø¨ÙØ§Ø³Ø·Ø© Owner: {call.from_user.id}"
+    )
     try:
-        bot.edit_message_reply_markup(
+        bot.edit_message_text(
+            text,
             call.message.chat.id,
             call.message.message_id,
-            reply_markup=None,
+            reply_markup=markup,
         )
     except Exception:
         pass
-    bot.send_message(admin_id, f"تم حظر المستخدم {target_id} فورًا.")
+    bot.answer_callback_query(call.id, "ØªÙ Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù.", show_alert=True)
+
+
+def handle_report_unban(call, target_id_raw):
+    if not _owner_only_callback(call):
+        return
+
+    parts = target_id_raw.split(":", 1)
+    try:
+        target_id = int(parts[0])
+    except ValueError:
+        bot.answer_callback_query(call.id, "ID ØºÙØ± ØµØ­ÙØ­.", show_alert=True)
+        return
+
+    code = parts[1] if len(parts) == 2 else ""
+
+    if not is_banned(target_id):
+        bot.answer_callback_query(call.id, "Ø§ÙÙØ³ØªØ®Ø¯Ù ØºÙØ± ÙØ­Ø¸ÙØ±.", show_alert=True)
+        return
+
+    unban_user(target_id, call.from_user.id)
+
+    markup = types.InlineKeyboardMarkup()
+    if code and db_execute(
+        "SELECT 1 FROM links WHERE code=? AND deleted=0",
+        (code,),
+        fetchone=True,
+    ):
+        markup.add(
+            types.InlineKeyboardButton(
+                "â ï¸ ÙØ®Ø§ÙÙØ© - Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù",
+                callback_data=f"report:{code}",
+            )
+        )
+
+    try:
+        bot.edit_message_text(
+            "â©ï¸ ØªÙ ÙÙ Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù.\n\n"
+            f"User ID: {target_id}",
+            call.message.chat.id,
+            call.message.message_id,
+            reply_markup=markup if markup.keyboard else None,
+        )
+    except Exception:
+        pass
+    bot.answer_callback_query(call.id, "ØªÙ ÙÙ Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù.", show_alert=True)
+
 
 # ============================================================
 # Media handlers
@@ -1017,7 +1232,7 @@ def media_handler(message):
             (msg_type, file_id, message.caption or ""),
         )
         storage_write_start(msg_type, file_id, message.caption or "")
-        bot.send_message(user_id, "تم تحديث start")
+        bot.send_message(user_id, "ØªÙ ØªØ­Ø¯ÙØ« start")
         admin_steps[user_id] = None
         return
 
@@ -1064,7 +1279,7 @@ def media_handler(message):
                 if duplicate:
                     bot.send_message(
                         creator_snapshot["chat_id"],
-                        "هذه الوسائط موجودة مسبقًا ضمن الرابط:\n"
+                        "ÙØ°Ù Ø§ÙÙØ³Ø§Ø¦Ø· ÙÙØ¬ÙØ¯Ø© ÙØ³Ø¨ÙÙØ§ Ø¶ÙÙ Ø§ÙØ±Ø§Ø¨Ø·:\n"
                         f"https://t.me/{BOT_USERNAME}?start={existing}",
                     )
                 else:
@@ -1094,7 +1309,7 @@ def media_handler(message):
     if duplicate:
         bot.send_message(
             user_id,
-            "هذه الوسائط موجودة مسبقًا ضمن الرابط:\n"
+            "ÙØ°Ù Ø§ÙÙØ³Ø§Ø¦Ø· ÙÙØ¬ÙØ¯Ø© ÙØ³Ø¨ÙÙØ§ Ø¶ÙÙ Ø§ÙØ±Ø§Ø¨Ø·:\n"
             f"https://t.me/{BOT_USERNAME}?start={existing}",
         )
     else:
@@ -1127,7 +1342,7 @@ def admin_text(message):
         if duplicate:
             bot.send_message(
                 user_id,
-                "هذا المحتوى موجود مسبقًا ضمن الرابط:\n"
+                "ÙØ°Ø§ Ø§ÙÙØ­ØªÙÙ ÙÙØ¬ÙØ¯ ÙØ³Ø¨ÙÙØ§ Ø¶ÙÙ Ø§ÙØ±Ø§Ø¨Ø·:\n"
                 f"https://t.me/{BOT_USERNAME}?start={existing}",
             )
         else:
@@ -1137,7 +1352,7 @@ def admin_text(message):
     elif step == "broadcast_msg":
         broadcast_data[user_id] = message.text
         admin_steps[user_id] = "broadcast_time"
-        bot.send_message(user_id, "كم ثانية قبل حذف الرسالة؟")
+        bot.send_message(user_id, "ÙÙ Ø«Ø§ÙÙØ© ÙØ¨Ù Ø­Ø°Ù Ø§ÙØ±Ø³Ø§ÙØ©Ø")
 
     elif step == "broadcast_time":
         try:
@@ -1163,9 +1378,9 @@ def admin_text(message):
                         pass
 
             threading.Thread(target=delete_broadcast, daemon=True).start()
-            bot.send_message(user_id, "تمت الإذاعة")
+            bot.send_message(user_id, "ØªÙØª Ø§ÙØ¥Ø°Ø§Ø¹Ø©")
         except ValueError:
-            bot.send_message(user_id, "رقم فقط")
+            bot.send_message(user_id, "Ø±ÙÙ ÙÙØ·")
         finally:
             admin_steps[user_id] = None
 
@@ -1175,7 +1390,7 @@ def admin_text(message):
         try:
             new_admin = int(message.text.strip())
             if new_admin in OWNERS:
-                bot.send_message(user_id, "هذا المستخدم Owner بالفعل.")
+                bot.send_message(user_id, "ÙØ°Ø§ Ø§ÙÙØ³ØªØ®Ø¯Ù Owner Ø¨Ø§ÙÙØ¹Ù.")
             else:
                 date_added = now()
                 db_execute(
@@ -1183,9 +1398,9 @@ def admin_text(message):
                     (new_admin, user_id, date_added),
                 )
                 storage_write_admin(new_admin, user_id, date_added)
-                bot.send_message(user_id, "تمت إضافة المشرف.")
+                bot.send_message(user_id, "ØªÙØª Ø¥Ø¶Ø§ÙØ© Ø§ÙÙØ´Ø±Ù.")
         except ValueError:
-            bot.send_message(user_id, "ايدي خطأ")
+            bot.send_message(user_id, "Ø§ÙØ¯Ù Ø®Ø·Ø£")
         admin_steps[user_id] = None
 
     elif step == "remove_admin":
@@ -1194,33 +1409,33 @@ def admin_text(message):
         try:
             admin_id = int(message.text.strip())
             if admin_id in OWNERS:
-                bot.send_message(user_id, "لا يمكن حذف Owner.")
+                bot.send_message(user_id, "ÙØ§ ÙÙÙÙ Ø­Ø°Ù Owner.")
             else:
                 db_execute("DELETE FROM admins WHERE user_id=?", (admin_id,))
                 storage_record("admin_removed", USER_ID=admin_id, REMOVED_BY=user_id, DATE=now())
-                bot.send_message(user_id, "تم الحذف")
+                bot.send_message(user_id, "ØªÙ Ø§ÙØ­Ø°Ù")
         except ValueError:
-            bot.send_message(user_id, "ايدي خطأ")
+            bot.send_message(user_id, "Ø§ÙØ¯Ù Ø®Ø·Ø£")
         admin_steps[user_id] = None
 
     elif step == "delete_link":
         code = message.text.strip()
         if delete_link(code, user_id):
-            bot.send_message(user_id, "تم حذف الرابط.")
+            bot.send_message(user_id, "ØªÙ Ø­Ø°Ù Ø§ÙØ±Ø§Ø¨Ø·.")
         else:
-            bot.send_message(user_id, "غير موجود")
+            bot.send_message(user_id, "ØºÙØ± ÙÙØ¬ÙØ¯")
         admin_steps[user_id] = None
 
     elif step == "ban_user":
         try:
             target_id = int(message.text.strip())
         except ValueError:
-            bot.send_message(user_id, "ايدي خطأ")
+            bot.send_message(user_id, "Ø§ÙØ¯Ù Ø®Ø·Ø£")
             admin_steps[user_id] = None
             return
 
         if target_id in OWNERS:
-            bot.send_message(user_id, "لا يمكن حظر Owner.")
+            bot.send_message(user_id, "ÙØ§ ÙÙÙÙ Ø­Ø¸Ø± Owner.")
             admin_steps[user_id] = None
             return
 
@@ -1230,18 +1445,18 @@ def admin_text(message):
             fetchone=True,
         )
         username = row[0] if row else ""
-        first_name = row[1] if row else "غير معروف"
+        first_name = row[1] if row else "ØºÙØ± ÙØ¹Ø±ÙÙ"
         markup = types.InlineKeyboardMarkup()
         markup.add(
-            types.InlineKeyboardButton("حظر المستخدم", callback_data=f"ban_confirm:{target_id}"),
-            types.InlineKeyboardButton("إلغاء", callback_data="ban_cancel"),
+            types.InlineKeyboardButton("Ø­Ø¸Ø± Ø§ÙÙØ³ØªØ®Ø¯Ù", callback_data=f"ban_confirm:{target_id}"),
+            types.InlineKeyboardButton("Ø¥ÙØºØ§Ø¡", callback_data="ban_cancel"),
         )
-        username_text = f"@{username}" if username else "غير موجود"
+        username_text = f"@{username}" if username else "ØºÙØ± ÙÙØ¬ÙØ¯"
         text = (
-            f"الاسم: {first_name}\n"
+            f"Ø§ÙØ§Ø³Ù: {first_name}\n"
             f"Username: {username_text}\n"
             f"User ID: {target_id}\n\n"
-            "هل تريد حظر هذا المستخدم؟"
+            "ÙÙ ØªØ±ÙØ¯ Ø­Ø¸Ø± ÙØ°Ø§ Ø§ÙÙØ³ØªØ®Ø¯ÙØ"
         )
         bot.send_message(user_id, text, reply_markup=markup)
         admin_steps[user_id] = None
@@ -1252,9 +1467,9 @@ def admin_text(message):
         try:
             target_id = int(message.text.strip())
             unban_user(target_id, user_id)
-            bot.send_message(user_id, "تم فك الحظر.")
+            bot.send_message(user_id, "ØªÙ ÙÙ Ø§ÙØ­Ø¸Ø±.")
         except ValueError:
-            bot.send_message(user_id, "ايدي خطأ")
+            bot.send_message(user_id, "Ø§ÙØ¯Ù Ø®Ø·Ø£")
         admin_steps[user_id] = None
 
     elif step == "set_channel":
@@ -1269,7 +1484,6 @@ def send_created_link_message(admin_id, code):
     bot.send_message(
         admin_id,
         f"https://t.me/{BOT_USERNAME}?start={code}",
-        reply_markup=report_keyboard(code),
     )
 
 # ============================================================
@@ -1302,19 +1516,19 @@ def handle_forced_channel_input(message):
                 "title": chat.title,
             }
         except Exception:
-            bot.send_message(user_id, "تعذر العثور على القناة، تأكد من اليوزر")
+            bot.send_message(user_id, "ØªØ¹Ø°Ø± Ø§ÙØ¹Ø«ÙØ± Ø¹ÙÙ Ø§ÙÙÙØ§Ø©Ø ØªØ£ÙØ¯ ÙÙ Ø§ÙÙÙØ²Ø±")
             return
     else:
-        bot.send_message(user_id, "أرسل منشورًا Forward من القناة، أو يوزر يبدأ بـ @")
+        bot.send_message(user_id, "Ø£Ø±Ø³Ù ÙÙØ´ÙØ±ÙØ§ Forward ÙÙ Ø§ÙÙÙØ§Ø©Ø Ø£Ù ÙÙØ²Ø± ÙØ¨Ø¯Ø£ Ø¨Ù @")
         return
 
     try:
         member = bot.get_chat_member(channel_info["chat_id"], BOT_ID)
         if member.status not in ("administrator", "creator"):
-            bot.send_message(user_id, "⚠️ يجب أن يكون البوت مشرفًا في القناة أولاً")
+            bot.send_message(user_id, "â ï¸ ÙØ¬Ø¨ Ø£Ù ÙÙÙÙ Ø§ÙØ¨ÙØª ÙØ´Ø±ÙÙØ§ ÙÙ Ø§ÙÙÙØ§Ø© Ø£ÙÙØ§Ù")
             return
     except Exception:
-        bot.send_message(user_id, "⚠️ تعذر التحقق، تأكد أن البوت مشرف في القناة")
+        bot.send_message(user_id, "â ï¸ ØªØ¹Ø°Ø± Ø§ÙØªØ­ÙÙØ ØªØ£ÙØ¯ Ø£Ù Ø§ÙØ¨ÙØª ÙØ´Ø±Ù ÙÙ Ø§ÙÙÙØ§Ø©")
         return
 
     if not channel_info.get("username"):
@@ -1325,7 +1539,7 @@ def handle_forced_channel_input(message):
 
     set_forced_channel(channel_info)
     admin_steps[user_id] = None
-    bot.send_message(user_id, f"✅ تم تفعيل الاشتراك الإجباري في: {channel_info.get('title')}")
+    bot.send_message(user_id, f"â ØªÙ ØªÙØ¹ÙÙ Ø§ÙØ§Ø´ØªØ±Ø§Ù Ø§ÙØ¥Ø¬Ø¨Ø§Ø±Ù ÙÙ: {channel_info.get('title')}")
 
 # ============================================================
 # Storage health check
@@ -1338,13 +1552,13 @@ def check_storage(owner_id):
         member = bot.get_chat_member(STORAGE_CHAT_ID, BOT_ID)
         bot.send_message(
             owner_id,
-            "Storage Group يعمل.\n\n"
-            f"الاسم: {chat.title}\n"
+            "Storage Group ÙØ¹ÙÙ.\n\n"
+            f"Ø§ÙØ§Ø³Ù: {chat.title}\n"
             f"ID: {chat.id}\n"
             f"Bot status: {member.status}",
         )
     except Exception as e:
-        bot.send_message(owner_id, "فشل فحص Storage Group:\n" + str(e))
+        bot.send_message(owner_id, "ÙØ´Ù ÙØ­Øµ Storage Group:\n" + str(e))
 
 # ============================================================
 # Recovery parser
@@ -1646,7 +1860,7 @@ def run_recovery(owner_id):
     if not is_owner(owner_id):
         return
     if not recovery_lock.acquire(blocking=False):
-        bot.send_message(owner_id, "Recovery يعمل بالفعل.")
+        bot.send_message(owner_id, "Recovery ÙØ¹ÙÙ Ø¨Ø§ÙÙØ¹Ù.")
         return
 
     try:
@@ -1655,15 +1869,15 @@ def run_recovery(owner_id):
         set_state("last_recovery", now())
         bot.send_message(
             owner_id,
-            "تمت استعادة البيانات.\n\n"
-            f"الروابط: {result['links']}\n"
-            f"المستخدمون: {result['users']}\n"
-            f"المشرفون: {result['admins']}\n"
-            f"المحظورون: {result['bans']}",
+            "ØªÙØª Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø§ÙØ¨ÙØ§ÙØ§Øª.\n\n"
+            f"Ø§ÙØ±ÙØ§Ø¨Ø·: {result['links']}\n"
+            f"Ø§ÙÙØ³ØªØ®Ø¯ÙÙÙ: {result['users']}\n"
+            f"Ø§ÙÙØ´Ø±ÙÙÙ: {result['admins']}\n"
+            f"Ø§ÙÙØ­Ø¸ÙØ±ÙÙ: {result['bans']}",
         )
     except Exception as e:
         print("RECOVERY ERROR:", repr(e))
-        bot.send_message(owner_id, "فشل Recovery:\n" + str(e))
+        bot.send_message(owner_id, "ÙØ´Ù Recovery:\n" + str(e))
     finally:
         recovery_lock.release()
 
